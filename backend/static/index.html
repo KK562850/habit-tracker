@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Habits">
+  <title>Habits</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --label: #000000;
+      --label2: #3c3c43;
+      --label3: #8e8e93;
+      --accent: #007aff;
+      --destructive: #ff3b30;
+      --orange: #ff9500;
+      --separator: #c6c6c8;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --card: #1c1c1e;
+        --label: #ffffff;
+        --label2: #ebebf5cc;
+        --label3: #ebebf599;
+        --separator: #38383a;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: var(--bg);
+      color: var(--label);
+      min-height: 100dvh;
+      padding-top: calc(var(--safe-top) + 56px);
+      padding-bottom: calc(var(--safe-bottom) + 16px);
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding-top: var(--safe-top);
+      background: var(--bg);
+      border-bottom: 1px solid transparent;
+    }
+    .header-inner {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 8px 20px 10px;
+    }
+    .header-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .header-date {
+      font-size: 13px;
+      color: var(--label3);
+      margin-top: 2px;
+    }
+    .btn-add {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { opacity: 0.7; }
+
+    /* List */
+    .list {
+      margin: 16px 0;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-inline: 16px;
+    }
+
+    .habit-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-bottom: 0.5px solid var(--separator);
+      position: relative;
+      overflow: hidden;
+      background: var(--card);
+      transition: transform 0.25s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .habit-row:last-child { border-bottom: none; }
+
+    .check-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--separator);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .check-btn.done {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .check-btn.done::after {
+      content: '';
+      width: 10px; height: 6px;
+      border-left: 2px solid white;
+      border-bottom: 2px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+
+    .habit-info { flex: 1; min-width: 0; }
+    .habit-name {
+      font-size: 17px;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.15s;
+    }
+    .habit-name.done {
+      color: var(--label3);
+      text-decoration: line-through;
+    }
+
+    .streak {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 14px;
+      color: var(--label3);
+      flex-shrink: 0;
+    }
+    .streak-flame { font-size: 13px; }
+
+    /* Swipe delete */
+    .delete-bg {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      background: var(--destructive);
+      display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 20px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      width: 0;
+      overflow: hidden;
+      transition: width 0.0s;
+    }
+
+    /* Empty state */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 80px 32px;
+      color: var(--label3);
+      text-align: center;
+    }
+    .empty-icon { font-size: 52px; }
+    .empty-title { font-size: 20px; font-weight: 600; color: var(--label2); }
+    .empty-sub { font-size: 15px; line-height: 1.4; }
+
+    /* Modal */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      display: flex; align-items: flex-end;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .sheet {
+      width: 100%;
+      background: var(--card);
+      border-radius: 16px 16px 0 0;
+      padding: 20px 20px calc(var(--safe-bottom) + 20px);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    }
+    .overlay.open .sheet { transform: translateY(0); }
+    .sheet h2 { font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 16px; }
+    .sheet input {
+      width: 100%;
+      padding: 13px 16px;
+      font-size: 17px;
+      border-radius: 10px;
+      border: none;
+      background: var(--bg);
+      color: var(--label);
+      outline: none;
+      margin-bottom: 12px;
+      font-family: inherit;
+    }
+    .sheet-actions { display: flex; gap: 10px; }
+    .btn {
+      flex: 1; padding: 13px;
+      border-radius: 10px;
+      border: none;
+      font-size: 17px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-cancel { background: var(--bg); color: var(--label); }
+    .btn:active { opacity: 0.7; }
+
+    /* Error toast */
+    .toast {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 20px);
+      left: 16px; right: 16px;
+      background: #ff3b30;
+      color: white;
+      padding: 14px 16px;
+      border-radius: 12px;
+      font-size: 15px;
+      z-index: 300;
+      transform: translateY(120%);
+      transition: transform 0.3s;
+    }
+    .toast.show { transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">Today</div>
+      <div class="header-date" id="dateLabel"></div>
+    </div>
+    <button class="btn-add" onclick="openAdd()" aria-label="Add habit">+</button>
+  </div>
+</div>
+
+<div id="app"></div>
+
+<div class="overlay" id="overlay" onclick="closeAdd(event)">
+  <div class="sheet">
+    <h2>New Habit</h2>
+    <input id="habitInput" type="text" placeholder="e.g. Read for 20 minutes"
+           maxlength="60" autocomplete="off" autocorrect="on"
+           onkeydown="if(event.key==='Enter') submitAdd()">
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAdd()">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = '';  // same origin
+
+// Date header
+const now = new Date();
+document.getElementById('dateLabel').textContent = now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+
+let habits = [];
+
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+  const r = await fetch(BASE + path, opts);
+  if (r.status === 204) return null;
+  if (!r.ok) throw new Error('Server error ' + r.status);
+  return r.json();
+}
+
+function showError(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function load() {
+  try {
+    habits = await api('GET', '/habits');
+    render();
+  } catch(e) { showError('Could not connect to server.'); }
+}
+
+function render() {
+  const app = document.getElementById('app');
+  if (habits.length === 0) {
+    app.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">No habits yet</div>
+        <div class="empty-sub">Tap + to add your first daily habit.</div>
+      </div>`;
+    return;
+  }
+  app.innerHTML = `<div class="list">${habits.map(habitHTML).join('')}</div>`;
+  // attach swipe listeners
+  habits.forEach(h => attachSwipe(h.id));
+}
+
+function habitHTML(h) {
+  return `
+    <div class="habit-row" id="row-${h.id}">
+      <div class="delete-bg" id="delbg-${h.id}">Delete</div>
+      <button class="check-btn ${h.completed_today ? 'done' : ''}"
+              onclick="toggle(${h.id})" aria-label="Toggle"></button>
+      <div class="habit-info">
+        <div class="habit-name ${h.completed_today ? 'done' : ''}">${escHtml(h.name)}</div>
+      </div>
+      ${h.streak > 0 ? `<div class="streak"><span class="streak-flame">🔥</span>${h.streak}</div>` : ''}
+    </div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function toggle(id) {
+  const h = habits.find(x => x.id === id);
+  if (!h) return;
+  h.completed_today = !h.completed_today;
+  render();
+  try {
+    const r = await api('POST', `/habits/${id}/toggle`);
+    h.completed_today = r.completed_today;
+    h.streak = r.streak;
+    render();
+  } catch(e) {
+    h.completed_today = !h.completed_today;
+    render();
+    showError('Failed to update habit.');
+  }
+}
+
+async function deleteHabit(id) {
+  habits = habits.filter(x => x.id !== id);
+  render();
+  try { await api('DELETE', `/habits/${id}`); }
+  catch(e) { showError('Failed to delete.'); load(); }
+}
+
+// Add sheet
+function openAdd() {
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('habitInput').focus(), 300);
+}
+function closeAdd(e) {
+  if (e && e.target !== document.getElementById('overlay')) return;
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('habitInput').value = '';
+}
+async function submitAdd() {
+  const input = document.getElementById('habitInput');
+  const name = input.value.trim();
+  if (!name) return;
+  document.getElementById('overlay').classList.remove('open');
+  input.value = '';
+  try {
+    const h = await api('POST', '/habits', {name});
+    habits.push(h);
+    render();
+  } catch(e) { showError('Failed to add habit.'); }
+}
+
+// Swipe-to-delete
+function attachSwipe(id) {
+  const row = document.getElementById('row-' + id);
+  const bg  = document.getElementById('delbg-' + id);
+  if (!row) return;
+  let startX = 0, curX = 0, swiping = false;
+
+  row.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    swiping = true;
+  }, {passive: true});
+
+  row.addEventListener('touchmove', e => {
+    if (!swiping) return;
+    curX = e.touches[0].clientX - startX;
+    if (curX > 0) curX = 0;
+    const w = Math.min(Math.abs(curX), 100);
+    bg.style.width = w + 'px';
+    row.style.transform = `translateX(${curX < -100 ? -100 : curX}px)`;
+  }, {passive: true});
+
+  row.addEventListener('touchend', () => {
+    swiping = false;
+    if (Math.abs(curX) > 60) {
+      deleteHabit(id);
+    } else {
+      row.style.transform = '';
+      bg.style.width = '0';
+    }
+    curX = 0;
+  });
+}
+
+load();
+</script>
+</body>
+</html>
